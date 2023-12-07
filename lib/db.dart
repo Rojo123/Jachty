@@ -1,11 +1,12 @@
 import "dart:async";
 import "package:mysql1/mysql1.dart";
+import "package:yacht_rental/config.dart";
 
 var settings = ConnectionSettings(
-  host: "cl14.netmark.pl",
-  user: "praktyk1_userjacht",
-  password: "w{nXL-TbiX1E",
-  db: "praktyk1_wypozyczalniajachtow",
+  host: dbHost,
+  user: dbUser,
+  password: dbPass,
+  db: db,
 );
 
 Future doQuery(String query) async{
