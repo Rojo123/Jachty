@@ -3,11 +3,25 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-import 'package:provider/provider.dart';
-import 'package:yacht_rental/main.dart';
 import 'package:yacht_rental/constants.dart';
 import 'package:yacht_rental/db.dart';
 import 'package:yacht_rental/scan_page.dart';
+import 'package:yacht_rental/file_handler.dart';
+
+class MyRouteObserver extends RouteObserver<PageRoute<dynamic>> {
+  final VoidCallback onPagePopped;
+
+  MyRouteObserver({required this.onPagePopped});
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+
+    if (previousRoute?.settings.name == '/') {
+      onPagePopped();
+    }
+  }
+}
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -18,10 +32,14 @@ class MapPage extends StatefulWidget {
 
 class MapPageState extends State<MapPage> {
   bool loaded = false;
+  late bool displayRentInfo;
   List<dynamic> boatData = [];
   List<Marker> markers = [];
-  late IsolateStateNotifier isolateState;
-  late Widget scanOrEnd;
+  Widget rentInfo = Container();
+  Timer? _timer;
+  List readResult = [];
+  DateTime endTime = DateTime(0);
+  Duration timeLeft = Duration.zero;
 
   final Completer<GoogleMapController> _controller = Completer();
 
@@ -108,20 +126,54 @@ class MapPageState extends State<MapPage> {
     );
   }
 
+  void onPagePoppedAction(){
+    setState((){displayRentInfo = true; print("AAAAAAAAAAAAAAAAAAAAAA");});
+  }
+
+  void endRental() async {
+    await handleFile(true, "");
+    displayRentInfo = false;
+  }
+
   @override
   void initState() {
     super.initState();
     setCustomMarkerIcon();
     updateData();
-    Future.microtask(() {
-      isolateState = Provider.of<IsolateStateNotifier>(context, listen: false);
-      isolateState.timeoutStream.listen((String message) {
-        if(message == "Timeout"){
-          setState(() {
-            scanOrEnd = ElevatedButton(onPressed: (){endRental();}, child: const Text("ZAKOŃCZ"));
-          });
-        }
+    displayRentInfo = DateTime.now().isBefore(endTime) ? true : false;
+
+    if(displayRentInfo){
+      setState(() {
+      rentInfo = Center(child: Container(width: 300, height: 300, decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: const [BoxShadow(color: secondaryColor, spreadRadius: 3)],
+          borderRadius: BorderRadius.circular(10)
+          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text("Czas rozpoczęcia: ${readResult[1]}"),
+
+            const SizedBox(height: 5),
+
+            Text("Czas zakończenia: ${readResult[2]}"),
+
+            const SizedBox(height: 5),
+
+            Text("Pozostały czas: ${timeLeft.toString}"),
+
+            const SizedBox(height: 5),
+
+            ElevatedButton(onPressed: (){endRental();}, child: const Text("ZAKOŃCZ")),
+          ]),
+      ));
       });
+    }
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if(DateTime.now().isBefore(endTime)){
+        setState(() {
+          timeLeft = DateTime.now().difference(endTime);
+        });
+      }
     });
   }
 
@@ -136,15 +188,42 @@ class MapPageState extends State<MapPage> {
       position: LatLng(
       currentLocation!.latitude!, currentLocation!.longitude!),
     ));
+    readResult = await handleFile(false);
+    endTime = readResult[2] != "0" ? DateTime.parse(readResult[2]) : DateTime(0);
   }
 
-  void endRental(){
-    print("BOBOBOBOBOBOBOBOB");
+  @override
+  void dispose(){
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    scanOrEnd = Row(children: [
+    return Scaffold(
+      appBar: AppBar(title: const Text("Mapa",),),
+      body:loaded == false
+          ? const Center(child:
+          Column(mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center, children: [
+              CircularProgressIndicator(),
+              Text("Usługi lokalizacyjne mogą być wyłączone")
+            ]
+          ))
+          :  Stack(alignment: Alignment.center, children: [
+            GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: LatLng(
+                  currentLocation!.latitude!, currentLocation!.longitude!),
+              zoom: 13.5,
+            ),
+            markers: Set<Marker>.of(markers),
+            onMapCreated: (mapController) {
+              _controller.complete(mapController);
+            },
+        ),
+
+        Positioned(bottom: 50, child: Row(children: [
           const CircleAvatar(
             radius: 20,
             backgroundColor: Color(0x00000000)
@@ -172,31 +251,9 @@ class MapPageState extends State<MapPage> {
                 MaterialPageRoute(builder: (context) => const ScanPage(mode: "issue"))
               );
             }))
-        ]);
+        ])),
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("Mapa",),),
-      body:loaded == false
-          ? const Center(child:
-          Column(mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center, children: [
-              CircularProgressIndicator(),
-              Text("Usługi lokalizacyjne mogą być wyłączone")
-            ]
-          ))
-          :  Stack(alignment: Alignment.center, children: [
-            GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: LatLng(
-                  currentLocation!.latitude!, currentLocation!.longitude!),
-              zoom: 13.5,
-            ),
-            markers: Set<Marker>.of(markers),
-            onMapCreated: (mapController) {
-              _controller.complete(mapController);
-            },
-        ),
-        Positioned(bottom: 50, child: scanOrEnd)
+        if(rentInfo != Container()) rentInfo,
       ])
     );
   }

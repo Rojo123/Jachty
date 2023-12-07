@@ -5,11 +5,10 @@ import "package:webview_flutter/webview_flutter.dart";
 import "dart:convert";
 import "package:crypto/crypto.dart";
 import "package:xml/xml.dart" as xml;
-import "package:provider/provider.dart";
 import "package:yacht_rental/db.dart";
 import "package:yacht_rental/constants.dart";
-import "package:yacht_rental/main.dart";
 import "package:yacht_rental/config.dart";
+import "package:yacht_rental/file_handler.dart";
 
 class RentalPage extends StatefulWidget {
   final String qrCode;
@@ -24,10 +23,10 @@ class RentalPageState extends State<RentalPage> {
   String yachtName = "";
   String yachtNumber = "";
   double yachtPrice = 0.0;
+  int rentTime = 1;
   String error = "";
   Widget webviewSlot = Container();
   Widget statusSlot = Container();
-  late IsolateStateNotifier isolateState;
 
   void routeToResult(){
     Navigator.push(
@@ -36,13 +35,25 @@ class RentalPageState extends State<RentalPage> {
     );
   }
 
+  //Tabela: ID, JachtID, Start, Koniec
+
+  void createTempFile() async {
+    final startTime = DateTime.now();
+    final endTime = startTime.add(Duration(minutes: 3));//hours: rentTime));
+    final yachtId = await doQuery("SELECT id FROM wypozyczalnia WHERE qrcode = $yachtNumber");
+
+    await handleFile(true, "$yachtId;$startTime;$endTime");
+
+    //await doQuery("INSERT INTO wypozyczenie(JachtID, Start, Koniec) VALUES('$yachtId', '$startTime', '$endTime')");
+  }
+
   Future<void> sendTpayRequest() async {
     String apiKey = tpayApi;
     String apiUrl = 'https://secure.tpay.com/api/gw/$apiKey/transaction/create';
     String locError = "";
 
     String tranId = tpayId;
-    String tranAmount = yachtPrice.toString();
+    String tranAmount = (yachtPrice * rentTime).toString();
     String tranCrc = "test";
     String tranCode = tpayCode;
     String tranMd5sum = md5.convert(utf8.encode('$tranId&$tranAmount&$tranCrc&$tranCode')).toString();
@@ -80,7 +91,7 @@ class RentalPageState extends State<RentalPage> {
             onPageFinished: (String url) {
               if (url.contains('return')) {
                 doQuery("UPDATE wypozyczalnia SET status = 1 WHERE qrcode = $yachtNumber");
-                isolateState.startIsolate();
+                createTempFile();
                 routeToResult();
               }
             }
@@ -137,10 +148,6 @@ class RentalPageState extends State<RentalPage> {
   void initState() {
     super.initState();
     getYachtInfo();
-    Future.delayed(Duration.zero, (){
-      isolateState = Provider.of<IsolateStateNotifier>(context, listen: false);
-    });
-    
   }
 
   @override
