@@ -9,6 +9,7 @@ import "package:provider/provider.dart";
 import "package:yacht_rental/db.dart";
 import "package:yacht_rental/constants.dart";
 import "package:yacht_rental/main.dart";
+import "package:yacht_rental/config.dart";
 
 class RentalPage extends StatefulWidget {
   final String qrCode;
@@ -22,7 +23,7 @@ class RentalPage extends StatefulWidget {
 class RentalPageState extends State<RentalPage> {
   String yachtName = "";
   String yachtNumber = "";
-  double yachtPrice = 0.00;
+  double yachtPrice = 0.0;
   String error = "";
   Widget webviewSlot = Container();
   Widget statusSlot = Container();
@@ -36,19 +37,19 @@ class RentalPageState extends State<RentalPage> {
   }
 
   Future<void> sendTpayRequest() async {
-    String apiKey = '0c5deb570f21b7c037006be6c142740012c0f688';
+    String apiKey = tpayApi;
     String apiUrl = 'https://secure.tpay.com/api/gw/$apiKey/transaction/create';
     String locError = "";
 
-    String tranId = "27782";
+    String tranId = tpayId;
     String tranAmount = yachtPrice.toString();
     String tranCrc = "test";
-    String tranCode = "6Ls6ZQY83zRyrBtD";
+    String tranCode = tpayCode;
     String tranMd5sum = md5.convert(utf8.encode('$tranId&$tranAmount&$tranCrc&$tranCode')).toString();
 
     Map<String, String> headers = {'Content-Type': 'application/x-www-form-urlencoded'};
     Map<String, dynamic> requestBody = {
-      'api_password': "Praktyki23",
+      'api_password': tpayPass,
       'id': tranId,
       'amount': tranAmount.toString(),
       'description': 'Opis transakcji',
