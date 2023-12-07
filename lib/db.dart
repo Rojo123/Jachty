@@ -21,5 +21,3 @@ Future doQuery(String query) async{
     return 0;
   }
 }
-
-//String query = "SELECT id, jacht, qrcode, status, gps, komentarz FROM wypozyczalnia";
