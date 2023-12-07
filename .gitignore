@@ -49,3 +49,4 @@ app.*.map.json
 /lib/config.dart
 /android/local.properties
 /ios/secret.plist
+/ReadMeStart
