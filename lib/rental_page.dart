@@ -13,7 +13,7 @@ import "package:yacht_rental/main.dart";
 class RentalPage extends StatefulWidget {
   final String qrCode;
 
-  const RentalPage({required this.qrCode});
+  const RentalPage({super.key, required this.qrCode});
 
   @override
   State<RentalPage> createState() => RentalPageState();

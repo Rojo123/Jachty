@@ -6,7 +6,7 @@ import "package:yacht_rental/constants.dart";
 class IssuePage extends StatefulWidget {
   final String qrCode;
 
-  const IssuePage({required this.qrCode});
+  const IssuePage({super.key, required this.qrCode});
 
   @override
   State<IssuePage> createState() => IssuePageState();

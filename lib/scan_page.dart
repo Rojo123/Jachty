@@ -7,7 +7,7 @@ import "package:yacht_rental/issue_page.dart";
 class ScanPage extends StatefulWidget {
   final String mode;
 
-  const ScanPage({required this.mode});
+  const ScanPage({super.key, required this.mode});
 
   @override
   State<ScanPage> createState() => ScanPageState();

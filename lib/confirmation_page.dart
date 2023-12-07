@@ -3,7 +3,7 @@ import "dart:async";
 import "package:yacht_rental/constants.dart";
 
 class ConfirmationPage extends StatefulWidget {
-  const ConfirmationPage({Key? key}) : super(key: key);
+  const ConfirmationPage({super.key});
 
   @override
   State<ConfirmationPage> createState() => ConfirmationPageState();

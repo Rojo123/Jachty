@@ -10,7 +10,7 @@ import 'package:yacht_rental/db.dart';
 import 'package:yacht_rental/scan_page.dart';
 
 class MapPage extends StatefulWidget {
-  const MapPage({Key? key}) : super(key: key);
+  const MapPage({super.key});
 
   @override
   State<MapPage> createState() => MapPageState();
@@ -118,7 +118,7 @@ class MapPageState extends State<MapPage> {
       isolateState.timeoutStream.listen((String message) {
         if(message == "Timeout"){
           setState(() {
-            
+            scanOrEnd = ElevatedButton(onPressed: (){endRental();}, child: const Text("ZAKOŃCZ"));
           });
         }
       });

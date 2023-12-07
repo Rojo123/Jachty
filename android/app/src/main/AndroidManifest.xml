@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.google_mao">
+    package="com.example.Jachty">
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.CAMERA" />
@@ -35,7 +35,7 @@
             android:name="flutterEmbedding"
             android:value="2" />
              <meta-data android:name="com.google.android.geo.API_KEY"
-               android:value="AIzaSyCzYLVN3x_jqpzRQQxFoHXQD7qz2hM7teI"/>
+               android:value="@string/api_key"/>
                
     </application>
 </manifest>
