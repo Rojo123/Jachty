@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Google Mao</string>
+	<string>Wypożyczanie Jachtów</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -46,6 +46,8 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-<string>Some description</string>
-</dict>
+	<string>Pobieramy twoją lokalizację</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Do poprawnego działania aplikacji potrzebny jest dostęp do aparatu</string>
+	</dict>
 </plist>

@@ -16,8 +16,12 @@ Future handleFile(bool write, [String value = ""]) async {
   } else {
     try {
       final file = await getFile();
-      final stringForm = await file.readAsString();
-      return stringForm != "" ? stringForm.split(";") : ["0", "0", "0"];
+      if(await file.exists()){
+        final stringForm = await file.readAsString();
+        return stringForm != "" ? stringForm.split(";") : ["0", "0", "0"];
+      } else {
+        return ["0", "0", "0"];
+      }
 
     } catch(e) {
       return ["0", "0", "0"];

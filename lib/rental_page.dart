@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import "package:flutter/services.dart";
 import "package:http/http.dart" as http;
 import "package:yacht_rental/confirmation_page.dart";
 import "package:webview_flutter/webview_flutter.dart";
@@ -9,6 +10,8 @@ import "package:yacht_rental/db.dart";
 import "package:yacht_rental/constants.dart";
 import "package:yacht_rental/config.dart";
 import "package:yacht_rental/file_handler.dart";
+import "package:intl/intl.dart";
+import "package:email_validator/email_validator.dart";
 
 class RentalPage extends StatefulWidget {
   final String qrCode;
@@ -27,6 +30,11 @@ class RentalPageState extends State<RentalPage> {
   String error = "";
   Widget webviewSlot = Container();
   Widget statusSlot = Container();
+  Widget loadingTpay = Container();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
+  bool validEmail = true;
 
   void routeToResult(){
     Navigator.push(
@@ -35,26 +43,31 @@ class RentalPageState extends State<RentalPage> {
     );
   }
 
-  //Tabela: ID, JachtID, Start, Koniec
+  //Wypozyczenie: ID, JachtID, Start, Koniec
 
   void createTempFile() async {
     final startTime = DateTime.now();
-    final endTime = startTime.add(Duration(minutes: 3));//hours: rentTime));
-    final yachtId = await doQuery("SELECT id FROM wypozyczalnia WHERE qrcode = $yachtNumber");
+    final endTime = startTime.add(Duration(hours: rentTime));
+    final yachtIdQuery = await doQuery("SELECT id FROM wypozyczalnia WHERE qrcode = $yachtNumber");
+    final yachtId = yachtIdQuery.first[0];
 
-    await handleFile(true, "$yachtId;$startTime;$endTime");
+    await handleFile(true, "$yachtId;${DateFormat("yyyy-MM-dd HH:mm:ss").format(startTime)};${DateFormat("yyyy-MM-dd HH:mm:ss").format(endTime)}");
 
     //await doQuery("INSERT INTO wypozyczenie(JachtID, Start, Koniec) VALUES('$yachtId', '$startTime', '$endTime')");
   }
 
   Future<void> sendTpayRequest() async {
+    if(!validEmail) return;
+
     String apiKey = tpayApi;
     String apiUrl = 'https://secure.tpay.com/api/gw/$apiKey/transaction/create';
     String locError = "";
+    
+    rentTime = int.parse(_timeController.text);
 
     String tranId = tpayId;
     String tranAmount = (yachtPrice * rentTime).toString();
-    String tranCrc = "test";
+    String tranCrc = "${DateFormat('yyyy-MM-dd').format(DateTime.now())} ${_nameController.text}";
     String tranCode = tpayCode;
     String tranMd5sum = md5.convert(utf8.encode('$tranId&$tranAmount&$tranCrc&$tranCode')).toString();
 
@@ -63,12 +76,12 @@ class RentalPageState extends State<RentalPage> {
       'api_password': tpayPass,
       'id': tranId,
       'amount': tranAmount.toString(),
-      'description': 'Opis transakcji',
+      'description': 'Wynajem jachtu',
       'crc': tranCrc,
       'md5sum': tranMd5sum,
       'group': "150",
-      'email': "asddasd@wp.pl",
-      'name': "John",
+      'email': _emailController.text,
+      'name': _nameController.text,
     };
 
     try {
@@ -85,6 +98,15 @@ class RentalPageState extends State<RentalPage> {
 
           String transactionUrl = urlElement.innerText;
           
+          setState(() {
+            loadingTpay = Center(child: Container(width: 90, height: 90, decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: const [BoxShadow(color: secondaryColor, spreadRadius: 3)],
+              borderRadius: BorderRadius.circular(10)
+            ),
+              child: const SizedBox(width: 50, height: 50, child: CircularProgressIndicator(color: secondaryColor,))));
+          });
+
           webviewSlot = WebView(
             initialUrl: transactionUrl,
             javascriptMode: JavascriptMode.unrestricted,
@@ -117,13 +139,13 @@ class RentalPageState extends State<RentalPage> {
     if(result.isNotEmpty){
       var row = result.first;
 
-      if(row[2] != 1){
+      if(row[2] != 1 && mounted){
         setState(() {
           yachtName = row != null ? row[0] : "Brak danych";
           yachtNumber = row != null ? row[1] : "Brak danych";
           yachtPrice = row != null ? row[3] : "Brak danych";
         });
-      } else {
+      } else if(mounted){
         setState(() {
           statusSlot = Center(child: Container(width: 300, height: 300, decoration: BoxDecoration(
             color: Colors.white,
@@ -151,13 +173,19 @@ class RentalPageState extends State<RentalPage> {
   }
 
   @override
+  void dispose() {
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context){
     return Scaffold(
       appBar: AppBar(title: const Text("Wynajmij jacht")),
       body: Stack(children: [
         SizedBox.expand(child: FittedBox(fit: BoxFit.fill, child: Image.asset("assets/BackgroundBoat.jpg"))),
 
-        Center(child: Container(width: 300, height: 300, decoration: BoxDecoration(
+        Center(child: Container(width: 300, height: 500, decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: const [BoxShadow(color: secondaryColor, spreadRadius: 3)],
           borderRadius: BorderRadius.circular(10)
@@ -175,7 +203,80 @@ class RentalPageState extends State<RentalPage> {
 
             Text("Cena: $yachtPrice\u{00A0}zł/h"),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 20),
+
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Text("Ile godzin?"),
+
+              const SizedBox(width: 20),
+
+              SizedBox(width: 50, height: 30, child: TextField(
+                controller: _timeController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (value) {
+                  if(value != "" && !value.contains(".")){
+                    int valueInt = int.parse(value);
+                    if(valueInt < 1){
+                      error = "Niepoprawny okres czasu";
+                    }
+                  } else {
+                    error = "Niepoprawny okres czasu";
+                  }
+                },
+                maxLines: 1,
+                decoration: const InputDecoration(
+                  iconColor: primaryColor,
+                  border: OutlineInputBorder(),
+                ),
+              )),
+            ],),
+
+            const SizedBox(height: 20),
+
+            const Text("Twoje imię i nazwisko:"),
+
+            const SizedBox(height: 10),
+
+            SizedBox(width: 280, height: 30, child: TextField(
+              controller: _nameController,
+              maxLines: 1,
+              decoration: const InputDecoration(
+                iconColor: primaryColor,
+                border: OutlineInputBorder(),
+              ),
+            )),
+
+            const SizedBox(height: 10),
+
+            const Text("Twój email:"),
+
+            const SizedBox(height: 10),
+
+            SizedBox(width: 280, height: 30, child: TextField(
+              controller: _emailController,
+              onChanged: (value) {
+                if(!EmailValidator.validate(value)){
+                  validEmail = false;
+                  setState(() {
+                    error = "Niepoprawny email";
+                  });
+
+                } else if(EmailValidator.validate(value)){
+                  validEmail = true;
+                  setState(() {
+                    error = "";
+                  });
+                }
+              },
+              maxLines: 1,
+              decoration: const InputDecoration(
+                iconColor: primaryColor,
+                border: OutlineInputBorder(),
+              ),
+            )),
+
+            const SizedBox(height: 20),
 
             ElevatedButton(child: const Text("Wynajmij"), onPressed: (){sendTpayRequest();}),
 
@@ -184,9 +285,11 @@ class RentalPageState extends State<RentalPage> {
             Text(error)
         ]))),
 
-        if(webviewSlot != Container())webviewSlot,
+        if(statusSlot != Container()) statusSlot,
 
-        if(statusSlot != Container()) statusSlot
+        if(loadingTpay != Container()) loadingTpay,
+
+        if(webviewSlot != Container())webviewSlot,
       ])
     );
   }

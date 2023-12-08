@@ -59,17 +59,7 @@ class IssuePageState extends State<IssuePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(data: ThemeData(
-      fontFamily: "Alata",
-
-      primarySwatch: Colors.blue,
-        
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
-        foregroundColor: textColor,
-        elevation: 0,
-      ),
-
+    final ThemeData theme = Theme.of(context).copyWith(
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           minimumSize: Size.copy(const Size(200, 35)),
@@ -78,18 +68,9 @@ class IssuePageState extends State<IssuePage> {
           elevation: 10,
         )
       ),
+    );
 
-      inputDecorationTheme: const InputDecorationTheme(
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: secondaryColor),
-        ),
-      ),
-
-      textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: secondaryColor,
-        selectionHandleColor: secondaryColor,
-      ),
-    ),
+    return Theme(data: theme,
     child: Scaffold(
       appBar: AppBar(
         title: const Text('Zgłoś problem'),
@@ -143,20 +124,19 @@ class IssuePageState extends State<IssuePage> {
 
             Text("Wybrany problem: $problem"),
 
-            const SizedBox(height: 10),
-
+            const SizedBox(height: 10),  
             const Text('Opisz problem:'),
 
             const SizedBox(height: 5),
 
-            TextField(
+            SizedBox(width: 280, child: TextField(
               controller: _descController,
               maxLines: 5,
               decoration: const InputDecoration(
                 iconColor: primaryColor,
                 border: OutlineInputBorder(),
               ),
-            ),
+            )),
 
             const SizedBox(height: 10),
 

@@ -7,21 +7,7 @@ import 'package:yacht_rental/constants.dart';
 import 'package:yacht_rental/db.dart';
 import 'package:yacht_rental/scan_page.dart';
 import 'package:yacht_rental/file_handler.dart';
-
-class MyRouteObserver extends RouteObserver<PageRoute<dynamic>> {
-  final VoidCallback onPagePopped;
-
-  MyRouteObserver({required this.onPagePopped});
-
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    super.didPop(route, previousRoute);
-
-    if (previousRoute?.settings.name == '/') {
-      onPagePopped();
-    }
-  }
-}
+import 'package:yacht_rental/camera.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -36,10 +22,9 @@ class MapPageState extends State<MapPage> {
   List<dynamic> boatData = [];
   List<Marker> markers = [];
   Widget rentInfo = Container();
-  Timer? _timer;
   List readResult = [];
   DateTime endTime = DateTime(0);
-  Duration timeLeft = Duration.zero;
+  String timeLeft = "";
 
   final Completer<GoogleMapController> _controller = Completer();
 
@@ -47,6 +32,10 @@ class MapPageState extends State<MapPage> {
 
   BitmapDescriptor sourceIcon = BitmapDescriptor.defaultMarker;
   BitmapDescriptor currentLocationIcon = BitmapDescriptor.defaultMarker;
+
+  void onPagePopped(){
+    updateData();
+  }
 
   void getMarkers() async{
     var results = await doQuery("SELECT id, gps FROM wypozyczalnia WHERE status = 0");
@@ -126,13 +115,24 @@ class MapPageState extends State<MapPage> {
     );
   }
 
-  void onPagePoppedAction(){
-    setState((){displayRentInfo = true; print("AAAAAAAAAAAAAAAAAAAAAA");});
-  }
-
   void endRental() async {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const CameraPage()));
+
     await handleFile(true, "");
     displayRentInfo = false;
+  }
+
+  String formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+
+    if (duration.inHours > 0) {
+      return '${duration.inHours}:$twoDigitMinutes:$twoDigitSeconds';
+    } else {
+      return '$twoDigitMinutes:$twoDigitSeconds';
+    }
   }
 
   @override
@@ -140,62 +140,59 @@ class MapPageState extends State<MapPage> {
     super.initState();
     setCustomMarkerIcon();
     updateData();
-    displayRentInfo = DateTime.now().isBefore(endTime) ? true : false;
-
-    if(displayRentInfo){
-      setState(() {
-      rentInfo = Center(child: Container(width: 300, height: 300, decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: const [BoxShadow(color: secondaryColor, spreadRadius: 3)],
-          borderRadius: BorderRadius.circular(10)
-          ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text("Czas rozpoczęcia: ${readResult[1]}"),
-
-            const SizedBox(height: 5),
-
-            Text("Czas zakończenia: ${readResult[2]}"),
-
-            const SizedBox(height: 5),
-
-            Text("Pozostały czas: ${timeLeft.toString}"),
-
-            const SizedBox(height: 5),
-
-            ElevatedButton(onPressed: (){endRental();}, child: const Text("ZAKOŃCZ")),
-          ]),
-      ));
-      });
-    }
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if(DateTime.now().isBefore(endTime)){
-        setState(() {
-          timeLeft = DateTime.now().difference(endTime);
-        });
-      }
-    });
   }
 
   void updateData() async {
-    await doQuery("UPDATE wypozyczalnia SET status = 0 WHERE id = 1"); //CHANGE
+    List readResultLoc = [];
+
     getCurrentLocation();
     getMarkers();
     await Future.delayed(const Duration(seconds: 5));
     markers.add(Marker(
       markerId: const MarkerId("currentLocation"),
       icon: currentLocationIcon,
-      position: LatLng(
-      currentLocation!.latitude!, currentLocation!.longitude!),
+      position: currentLocation != null ? LatLng(
+      currentLocation!.latitude!, currentLocation!.longitude!) : const LatLng(53.854647, 22.986731),
     ));
-    readResult = await handleFile(false);
-    endTime = readResult[2] != "0" ? DateTime.parse(readResult[2]) : DateTime(0);
-  }
 
-  @override
-  void dispose(){
-    _timer?.cancel();
-    super.dispose();
+    readResultLoc = await handleFile(false);
+    if(mounted) {setState(() {
+      readResult = readResultLoc;
+      endTime = readResult[2] != "0" ? DateTime.parse(readResult[2]) : DateTime(0);
+      displayRentInfo = DateTime.now().isBefore(endTime) ? true : false;
+
+      timeLeft = formatDuration(endTime.difference(DateTime.now()));
+
+      if(displayRentInfo){
+        rentInfo = Center(child: Container(width: 300, height: 300, decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: const [BoxShadow(color: secondaryColor, spreadRadius: 3)],
+            borderRadius: BorderRadius.circular(10)
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text("Czas rozpoczęcia: ${readResult[1]}"),
+
+              const SizedBox(height: 5),
+
+              Text("Czas zakończenia: ${readResult[2]}"),
+
+              const SizedBox(height: 5),
+
+              Text("Pozostały czas: $timeLeft"),
+
+              const SizedBox(height: 20),
+
+              ElevatedButton(onPressed: (){endRental();}, child: const Text("ZAKOŃCZ")),
+            ]),
+          ));
+      }
+    });}
+
+    // Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+    //   setState(() {
+    //     timeLeft = formatDuration(endTime.difference(DateTime.now()));
+    //   });
+    // });
   }
 
   @override
@@ -206,7 +203,7 @@ class MapPageState extends State<MapPage> {
           ? const Center(child:
           Column(mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center, children: [
-              CircularProgressIndicator(),
+              CircularProgressIndicator(color: secondaryColor),
               Text("Usługi lokalizacyjne mogą być wyłączone")
             ]
           ))
